@@ -1,0 +1,72 @@
+name: Build Android AAR
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-aar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Android SDK root path
+        run: |
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Restore Android SDK/NDK cache
+        id: cache-android-sdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}
+          key: ${{ runner.os }}-android-sdk-platforms-36-build-tools-36.0.0-ndk-26.3.11579264
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+        with:
+          log-accepted-android-sdk-licenses: false
+          packages: 'ndk;26.3.11579264'
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust Android targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi
+      
+      - name: Install LLVM and libclang (17)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-17 llvm-17-dev libclang-17-dev clang-17
+          echo "LLVM_CONFIG_PATH=/usr/bin/llvm-config-17" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=/usr/lib/llvm-17/lib" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-17/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "llvm-config at: /usr/bin/llvm-config-17"
+          echo "Resolved LIBCLANG_PATH: /usr/lib/llvm-17/lib"
+          ls -al "/usr/lib/llvm-17/lib" || true
+
+      - name: Build AAR (release)
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/26.3.11579264
+          LLVM_CONFIG_PATH: ${{ env.LLVM_CONFIG_PATH }}
+          LIBCLANG_PATH: ${{ env.LIBCLANG_PATH }}
+          LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}
+        run: |
+          TARGET=aarch64-linux-android OPENCV=$(pwd)/opencv sh build_android.sh
+          TARGET=armv7-linux-androideabi OPENCV=$(pwd)/opencv sh build_android.sh
+
+      - name: List files in target directory
+        run: |
+          ls -al target/aarch64-linux-android/debug
+          ls -al target/armv7-linux-androideabi/debug
