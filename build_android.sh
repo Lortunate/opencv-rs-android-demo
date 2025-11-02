@@ -40,4 +40,4 @@ fi
 
 export RUSTFLAGS="-C linker=$CC"
 
-RUST_BACKTRACE="full" cargo build -vv --target $TARGET
+RUST_BACKTRACE="full" cargo build -vv --target $TARGET --release
