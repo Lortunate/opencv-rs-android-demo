@@ -66,7 +66,11 @@ jobs:
           TARGET=aarch64-linux-android OPENCV=$(pwd)/opencv sh build_android.sh
           TARGET=armv7-linux-androideabi OPENCV=$(pwd)/opencv sh build_android.sh
 
+      - name: Install tree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tree
+
       - name: List files in target directory
         run: |
-          ls -al target/aarch64-linux-android/debug
-          ls -al target/armv7-linux-androideabi/debug
+          tree -a target
